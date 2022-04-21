@@ -1,3 +1,6 @@
+const L_ACCELERATION_CONST = 0.5;
+const G_ACCELERATION_CONST = 0.5;
+
 function rand(factor: number)
 {
     return Math.random() * factor;
@@ -74,9 +77,53 @@ class Swarm
     target: Quadratic;
     dataset: Array<Point>;
     particles: Array<Particle>;
+    gBest: Quadratic;
+    gBestCost: number;
 
-    constructor()
+    constructor(factor: number, n_datapoints: number, scale: number, noiseFactor: number, n_particles: number)
     {
-        
+        this.target = new Quadratic(rand(factor), rand(factor), rand(factor));
+        this.dataset = new Array(n_datapoints);
+        for (let i = 0; i < n_datapoints; i++) {
+            let x = rand(2 * scale) - scale; // Produces a number in the range (-scale, scale)
+            let y = this.target.valueAt(x) + rand(2 * noiseFactor) - noiseFactor;
+            this.dataset[i] = new Point(x, y);
+        }
+
+        this.particles = new Array(n_particles);
+        for (let i = 0; i < n_particles; i++) {
+            this.particles[i] = new Particle(factor);
+        }
+
+        this.gBest = null;
+        this.gBestCost = Number.MAX_VALUE;
+    }
+
+    updateSwarm(): void
+    {   
+        for (let particle of this.particles) {
+            particle.update(this.dataset);
+            
+            if (this.gBest === null || particle.lBestCost < this.gBestCost) {
+                this.gBest = particle.lBest.copy();
+                this.gBestCost = particle.lBestCost;
+            }
+        }
+
+        for (let i = 0; i < 3; i++) {
+            let r1 = Math.random();
+            let r2 = Math.random();
+            for (let particle of this.particles) {
+                let value = particle.value.coefficients[i];
+                let diffLBest = particle.lBest.coefficients[i] - value;
+                let diffGBest = this.gBest.coefficients[i] - value;
+                particle.velocity.coefficients[i] += (
+                    L_ACCELERATION_CONST * r1 * diffLBest +
+                    G_ACCELERATION_CONST * r2 * diffGBest
+                );
+
+                particle.value.coefficients[i] += particle.velocity.coefficients[i];
+            }
+        }
     }
 }
