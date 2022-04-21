@@ -15,5 +15,9 @@
   "bugs": {
     "url": "https://github.com/tafaulhaber590/particles/issues"
   },
-  "homepage": "https://github.com/tafaulhaber590/particles#readme"
+  "homepage": "https://github.com/tafaulhaber590/particles#readme",
+  "dependencies": {
+    "@types/jquery": "^3.5.14",
+    "typescript": "^4.6.3"
+  }
 }
