@@ -1,15 +1,16 @@
-const L_ACCELERATION_CONST = 0.5;
-const G_ACCELERATION_CONST = 0.5;
+const L_ACCELERATION_CONST = 0.3;
+const G_ACCELERATION_CONST = 0.3;
 
+const stepCtr = document.getElementById("step") as HTMLHeadingElement;
 const graph = document.getElementById("graph") as HTMLCanvasElement;
 const sim = document.getElementById("sim") as HTMLCanvasElement;
 const graphCtx = graph.getContext("2d");
 const simCtx = sim.getContext("2d");
 
-const GRAPH_WIDTH = graph.width = 500;
-const GRAPH_HEIGHT = graph.height = 500;
-const WIDTH = sim.width = 400;
-const HEIGHT = sim.height = 400;
+const GRAPH_WIDTH = graph.width = 1000;
+const GRAPH_HEIGHT = graph.height = 1000;
+const WIDTH = sim.width = 1000;
+const HEIGHT = sim.height = 1000;
 
 function rand(factor: number)
 {
@@ -89,19 +90,31 @@ class Particle
 
 class Swarm
 {
+    coefFactor: number
+    x_scale: number;
+    y_scale: number;
+
     target: Quadratic;
     dataset: Array<Point>;
     particles: Array<Particle>;
-    gBest: Quadratic;
-    gBestCost: number;
+    gBest = null;
+    gBestCost = Number.MAX_VALUE;
+
+    step = 0;
 
     constructor(factor: number, n_datapoints: number, scale: number, noiseFactor: number, n_particles: number)
     {
+        this.coefFactor = factor;
+        this.x_scale = scale;
+
         this.target = new Quadratic(rand(factor), rand(factor), rand(factor));
+        this.y_scale = this.target.valueAt(scale); // Max value
+
         this.dataset = new Array(n_datapoints);
         for (let i = 0; i < n_datapoints; i++) {
-            let x = rand(2 * scale) - scale; // Produces a number in the range (-scale, scale)
-            let y = this.target.valueAt(x) + rand(2 * noiseFactor) - noiseFactor;
+            let x = rand(scale);
+            let noise = rand(2 * noiseFactor) - noiseFactor;
+            let y = this.target.valueAt(x) + noise;
             this.dataset[i] = new Point(x, y);
         }
 
@@ -109,13 +122,10 @@ class Swarm
         for (let i = 0; i < n_particles; i++) {
             this.particles[i] = new Particle(factor);
         }
-
-        this.gBest = null;
-        this.gBestCost = Number.MAX_VALUE;
     }
 
-    updateSwarm(): Swarm
-    {   
+    private updateSwarm(): Swarm
+    {
         for (let particle of this.particles) {
             particle.updateLBest(this.dataset);
             
@@ -144,35 +154,104 @@ class Swarm
         return this;
     }
 
-    // For testing
-    colorVal = 0;
-    renderGraph(): Swarm
+    private renderGraph(): Swarm
     {
-        graphCtx.fillStyle = rgb(this.colorVal, this.colorVal, this.colorVal);
-
+        // Clear
+        graphCtx.fillStyle = "black";
         graphCtx.fillRect(0, 0, GRAPH_WIDTH, GRAPH_HEIGHT);
-        this.colorVal += 1;
-        this.colorVal %= 255;
+
+        // Border
+        simCtx.strokeStyle = "white 2px";
+        simCtx.strokeRect(0, 0, GRAPH_WIDTH, GRAPH_HEIGHT);
+
+        // Display each datapoint in the dataset and each corresponding gBest prediction
+        for (let point of this.dataset) {
+            graphCtx.fillStyle = "white";
+            graphCtx.beginPath();
+            graphCtx.arc(
+                point.x / this.x_scale * WIDTH,
+                point.y / this.y_scale * HEIGHT,
+                8,
+                0,
+                Math.PI * 2,
+            );
+            graphCtx.fill();
+
+            graphCtx.fillStyle = "green";
+            graphCtx.beginPath();
+            graphCtx.arc(
+                point.x / this.x_scale * WIDTH,
+                this.gBest.valueAt(point.x) / this.y_scale * HEIGHT,
+                6,
+                0,
+                Math.PI * 2,
+            );
+            graphCtx.fill();
+        }
 
         return this;
     }
 
-    renderSwarm(): Swarm
+    private renderSwarm(): Swarm
     {
+        // Clear
         simCtx.fillStyle = "black";
         simCtx.fillRect(0, 0, WIDTH, HEIGHT);
 
+        // Border
+        simCtx.strokeStyle = "white 2px";
+        simCtx.strokeRect(0, 0, WIDTH, HEIGHT);
+
+        // Display each particle
+        for (let particle of this.particles) {
+            simCtx.fillStyle = rgb(0, 255, particle.value.c() / this.coefFactor * 255);
+            simCtx.beginPath();
+            simCtx.arc(
+                particle.value.a() / this.coefFactor * WIDTH,
+                particle.value.b() / this.coefFactor * HEIGHT,
+                5,
+                0,
+                Math.PI * 2,
+            );
+            simCtx.fill();
+        }
+
+        // Display a point for the target
+        simCtx.fillStyle = rgb(this.target.c() / this.coefFactor * 255, 255, 0);
+        simCtx.beginPath();
+        simCtx.arc(
+            this.target.a() / this.coefFactor * WIDTH,
+            this.target.b() / this.coefFactor * HEIGHT,
+            8,
+            0,
+            Math.PI * 2,
+        );
+        simCtx.fill();
+
         return this;
+    }
+
+    // Main program loop
+    fullUpdate(): void
+    {
+        this.updateSwarm();
+        this.renderGraph().renderSwarm();
+        this.step++;
+
+        stepCtr.innerText = "Step #" + this.step;
     }
 }
 
-// Initial program state
-const swarm = new Swarm(10, 1000, 100, 10, 200);
-
-// Main program loop.
-// Updates the swarm, renders the new state, and then waits.
-function update() {
-    swarm.updateSwarm().renderGraph().renderSwarm();
+function getInitState(): Swarm
+{
+    return new Swarm(200, 12, 10, 350, 10);
 }
 
-setInterval(update, 10);
+// Initial program state
+var swarm = getInitState();
+setInterval(() => swarm.fullUpdate(), 1000);
+
+const reset = document.getElementById("reset") as HTMLButtonElement;
+reset.onclick = () => {
+    swarm = getInitState();
+}
