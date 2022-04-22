@@ -1,4 +1,4 @@
 .DEFAULT_GOAL := build
 
 build: script.ts
-	tsc script.ts --outFile script.js
+	tsc script.ts --outFile out/script.js

@@ -1,9 +1,24 @@
 const L_ACCELERATION_CONST = 0.5;
 const G_ACCELERATION_CONST = 0.5;
 
+const graph = document.getElementById("graph") as HTMLCanvasElement;
+const sim = document.getElementById("sim") as HTMLCanvasElement;
+const graphCtx = graph.getContext("2d");
+const simCtx = sim.getContext("2d");
+
+const GRAPH_WIDTH = graph.width = 500;
+const GRAPH_HEIGHT = graph.height = 500;
+const WIDTH = sim.width = 400;
+const HEIGHT = sim.height = 400;
+
 function rand(factor: number)
 {
     return Math.random() * factor;
+}
+
+function rgb(r: number, g: number, b: number): string
+{
+    return "rgb(" + r + ", " + g + ", " + b + ")";
 }
 
 class Point
@@ -57,7 +72,7 @@ class Particle
         this.lBestCost = Number.MAX_VALUE;
     }
     
-    update(dataset: Array<Point>): void
+    updateLBest(dataset: Array<Point>): void
     {
         var cost = 0;
         for (let point of dataset) {
@@ -99,10 +114,10 @@ class Swarm
         this.gBestCost = Number.MAX_VALUE;
     }
 
-    updateSwarm(): void
+    updateSwarm(): Swarm
     {   
         for (let particle of this.particles) {
-            particle.update(this.dataset);
+            particle.updateLBest(this.dataset);
             
             if (this.gBest === null || particle.lBestCost < this.gBestCost) {
                 this.gBest = particle.lBest.copy();
@@ -125,5 +140,39 @@ class Swarm
                 particle.value.coefficients[i] += particle.velocity.coefficients[i];
             }
         }
+
+        return this;
+    }
+
+    // For testing
+    colorVal = 0;
+    renderGraph(): Swarm
+    {
+        graphCtx.fillStyle = rgb(this.colorVal, this.colorVal, this.colorVal);
+
+        graphCtx.fillRect(0, 0, GRAPH_WIDTH, GRAPH_HEIGHT);
+        this.colorVal += 1;
+        this.colorVal %= 255;
+
+        return this;
+    }
+
+    renderSwarm(): Swarm
+    {
+        simCtx.fillStyle = "black";
+        simCtx.fillRect(0, 0, WIDTH, HEIGHT);
+
+        return this;
     }
 }
+
+// Initial program state
+const swarm = new Swarm(10, 1000, 100, 10, 200);
+
+// Main program loop.
+// Updates the swarm, renders the new state, and then waits.
+function update() {
+    swarm.updateSwarm().renderGraph().renderSwarm();
+}
+
+setInterval(update, 10);
