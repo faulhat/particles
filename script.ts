@@ -1,16 +1,20 @@
-const L_ACCELERATION_CONST = 0.3;
-const G_ACCELERATION_CONST = 0.3;
+const L_ACCELERATION_CONST = 0.4;
+const G_ACCELERATION_CONST = 0.4;
 
 const stepCtr = document.getElementById("step") as HTMLHeadingElement;
+const bestText = document.getElementById("best") as HTMLParagraphElement;
+const targetText = document.getElementById("target") as HTMLParagraphElement;
+const costText = document.getElementById("cost") as HTMLParagraphElement;
+
 const graph = document.getElementById("graph") as HTMLCanvasElement;
 const sim = document.getElementById("sim") as HTMLCanvasElement;
 const graphCtx = graph.getContext("2d");
 const simCtx = sim.getContext("2d");
 
-const GRAPH_WIDTH = graph.width = 1000;
-const GRAPH_HEIGHT = graph.height = 1000;
-const WIDTH = sim.width = 1000;
-const HEIGHT = sim.height = 1000;
+const GRAPH_WIDTH = graph.width = 900;
+const GRAPH_HEIGHT = graph.height = 900;
+const WIDTH = sim.width = 900;
+const HEIGHT = sim.height = 900;
 
 function rand(factor: number)
 {
@@ -20,6 +24,36 @@ function rand(factor: number)
 function rgb(r: number, g: number, b: number): string
 {
     return "rgb(" + r + ", " + g + ", " + b + ")";
+}
+
+// Round to two decimal places
+function twoplaces(x: number): number
+{
+    return Math.round(x * 100) / 100;
+}
+
+function arrayMax(array: Array<number>): number
+{
+    var max = Number.MIN_VALUE;
+    for (let x of array) {
+        if (max < x) {
+            max = x;
+        }
+    }
+
+    return max;
+}
+
+function arrayMin(array: Array<number>): number
+{
+    var min = Number.MAX_VALUE;
+    for (let x of array) {
+        if (min > x) {
+            min = x;
+        }
+    }
+
+    return min;
 }
 
 class Point
@@ -56,6 +90,15 @@ class Quadratic
     {
         return new Quadratic(this.a(), this.b(), this.c());
     }
+
+    toString(): string
+    {
+        return (
+            twoplaces(this.a()) + "x^2 + " +
+            twoplaces(this.b()) + "x + " +
+            twoplaces(this.c())
+        );
+    }
 }
 
 class Particle
@@ -80,7 +123,8 @@ class Particle
             let pred = this.value.valueAt(point.x);
             cost += Math.pow(pred - point.y, 2);
         }
-
+        cost = Math.sqrt(cost);
+        
         if (this.lBest === null || cost < this.lBestCost) {
             this.lBest = this.value.copy();
             this.lBestCost = cost;
@@ -91,8 +135,6 @@ class Particle
 class Swarm
 {
     coefFactor: number
-    x_scale: number;
-    y_scale: number;
 
     target: Quadratic;
     dataset: Array<Point>;
@@ -105,15 +147,14 @@ class Swarm
     constructor(factor: number, n_datapoints: number, scale: number, noiseFactor: number, n_particles: number)
     {
         this.coefFactor = factor;
-        this.x_scale = scale;
-
         this.target = new Quadratic(rand(factor), rand(factor), rand(factor));
-        this.y_scale = this.target.valueAt(scale); // Max value
+        targetText.innerText = "Target: " + this.target.toString();
 
         this.dataset = new Array(n_datapoints);
         for (let i = 0; i < n_datapoints; i++) {
             let x = rand(scale);
             let noise = rand(2 * noiseFactor) - noiseFactor;
+            console.log(this.target.valueAt(x) + ", " + noise);
             let y = this.target.valueAt(x) + noise;
             this.dataset[i] = new Point(x, y);
         }
@@ -145,7 +186,7 @@ class Swarm
                 particle.velocity.coefficients[i] += (
                     L_ACCELERATION_CONST * r1 * diffLBest +
                     G_ACCELERATION_CONST * r2 * diffGBest
-                );
+                ) * 0.005;
 
                 particle.value.coefficients[i] += particle.velocity.coefficients[i];
             }
@@ -164,13 +205,20 @@ class Swarm
         simCtx.strokeStyle = "white 2px";
         simCtx.strokeRect(0, 0, GRAPH_WIDTH, GRAPH_HEIGHT);
 
+        var xs = this.dataset.map(point => point.x);
+        var ys = this.dataset.map(point => point.y);
+        var x_lower = arrayMin(xs);
+        var x_upper = arrayMax(xs);
+        var y_lower = arrayMin(ys);
+        var y_upper = arrayMax(ys);
+
         // Display each datapoint in the dataset and each corresponding gBest prediction
         for (let point of this.dataset) {
             graphCtx.fillStyle = "white";
             graphCtx.beginPath();
             graphCtx.arc(
-                point.x / this.x_scale * WIDTH,
-                point.y / this.y_scale * HEIGHT,
+                (point.x - x_lower) / (x_upper - x_lower) * WIDTH,
+                HEIGHT - (point.y - y_lower) / (y_upper - y_lower) * HEIGHT,
                 8,
                 0,
                 Math.PI * 2,
@@ -180,8 +228,8 @@ class Swarm
             graphCtx.fillStyle = "green";
             graphCtx.beginPath();
             graphCtx.arc(
-                point.x / this.x_scale * WIDTH,
-                this.gBest.valueAt(point.x) / this.y_scale * HEIGHT,
+                (point.x - x_lower) / (x_upper - x_lower) * WIDTH,
+                HEIGHT - (this.gBest.valueAt(point.x) - y_lower) / (y_upper - y_lower) * HEIGHT,
                 6,
                 0,
                 Math.PI * 2,
@@ -199,16 +247,18 @@ class Swarm
         simCtx.fillRect(0, 0, WIDTH, HEIGHT);
 
         // Border
-        simCtx.strokeStyle = "white 2px";
+        simCtx.strokeStyle = "white";
+        simCtx.lineWidth = 2;
         simCtx.strokeRect(0, 0, WIDTH, HEIGHT);
 
         // Display each particle
         for (let particle of this.particles) {
-            simCtx.fillStyle = rgb(0, 255, particle.value.c() / this.coefFactor * 255);
+            let scaled_c = particle.value.c() / this.coefFactor * 255;
+            simCtx.fillStyle = rgb(255, scaled_c, 255);
             simCtx.beginPath();
             simCtx.arc(
                 particle.value.a() / this.coefFactor * WIDTH,
-                particle.value.b() / this.coefFactor * HEIGHT,
+                HEIGHT - particle.value.b() / this.coefFactor * HEIGHT,
                 5,
                 0,
                 Math.PI * 2,
@@ -217,16 +267,21 @@ class Swarm
         }
 
         // Display a point for the target
-        simCtx.fillStyle = rgb(this.target.c() / this.coefFactor * 255, 255, 0);
+        let scaled_c = this.target.c() / this.coefFactor * 255;
+        simCtx.fillStyle = rgb(255, scaled_c, 255);
         simCtx.beginPath();
         simCtx.arc(
             this.target.a() / this.coefFactor * WIDTH,
-            this.target.b() / this.coefFactor * HEIGHT,
-            8,
+            HEIGHT - this.target.b() / this.coefFactor * HEIGHT,
+            12,
             0,
             Math.PI * 2,
         );
         simCtx.fill();
+
+        simCtx.strokeStyle = rgb(255, 0, 0);
+        simCtx.lineWidth = 3;
+        simCtx.stroke();
 
         return this;
     }
@@ -239,17 +294,19 @@ class Swarm
         this.step++;
 
         stepCtr.innerText = "Step #" + this.step;
+        bestText.innerText = "Best: " + this.gBest.toString();
+        costText.innerText = "Cost: " + twoplaces(this.gBestCost);
     }
 }
 
 function getInitState(): Swarm
 {
-    return new Swarm(200, 12, 10, 350, 10);
+    return new Swarm(10, 200, 100, 2000, 500);
 }
 
 // Initial program state
 var swarm = getInitState();
-setInterval(() => swarm.fullUpdate(), 1000);
+setInterval(() => swarm.fullUpdate(), 50);
 
 const reset = document.getElementById("reset") as HTMLButtonElement;
 reset.onclick = () => {
