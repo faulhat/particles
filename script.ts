@@ -1,5 +1,5 @@
-const L_ACCELERATION_CONST = 0.4;
-const G_ACCELERATION_CONST = 0.4;
+const L_ACCELERATION_CONST = 0.8;
+const G_ACCELERATION_CONST = 0.8;
 
 const stepCtr = document.getElementById("step") as HTMLHeadingElement;
 const bestText = document.getElementById("best") as HTMLParagraphElement;
@@ -154,7 +154,6 @@ class Swarm
         for (let i = 0; i < n_datapoints; i++) {
             let x = rand(scale);
             let noise = rand(2 * noiseFactor) - noiseFactor;
-            console.log(this.target.valueAt(x) + ", " + noise);
             let y = this.target.valueAt(x) + noise;
             this.dataset[i] = new Point(x, y);
         }
@@ -186,7 +185,7 @@ class Swarm
                 particle.velocity.coefficients[i] += (
                     L_ACCELERATION_CONST * r1 * diffLBest +
                     G_ACCELERATION_CONST * r2 * diffGBest
-                ) * 0.005;
+                ) * 0.001;
 
                 particle.value.coefficients[i] += particle.velocity.coefficients[i];
             }
@@ -240,6 +239,11 @@ class Swarm
         return this;
     }
 
+    private scale(value: number): number
+    {
+        return value / (2 * this.coefFactor) + 1/4;
+    }
+
     private renderSwarm(): Swarm
     {
         // Clear
@@ -251,14 +255,16 @@ class Swarm
         simCtx.lineWidth = 2;
         simCtx.strokeRect(0, 0, WIDTH, HEIGHT);
 
+        
+
         // Display each particle
         for (let particle of this.particles) {
-            let scaled_c = particle.value.c() / this.coefFactor * 255;
+            let scaled_c = this.scale(particle.value.c()) * 255;
             simCtx.fillStyle = rgb(255, scaled_c, 255);
             simCtx.beginPath();
             simCtx.arc(
-                particle.value.a() / this.coefFactor * WIDTH,
-                HEIGHT - particle.value.b() / this.coefFactor * HEIGHT,
+                this.scale(particle.value.a()) * WIDTH,
+                (1 - this.scale(particle.value.b())) * HEIGHT,
                 5,
                 0,
                 Math.PI * 2,
@@ -267,12 +273,12 @@ class Swarm
         }
 
         // Display a point for the target
-        let scaled_c = this.target.c() / this.coefFactor * 255;
+        let scaled_c = this.scale(this.target.c()) * 255;
         simCtx.fillStyle = rgb(255, scaled_c, 255);
         simCtx.beginPath();
         simCtx.arc(
-            this.target.a() / this.coefFactor * WIDTH,
-            HEIGHT - this.target.b() / this.coefFactor * HEIGHT,
+            this.scale(this.target.a()) * WIDTH,
+            (1 - this.scale(this.target.b())) * HEIGHT,
             12,
             0,
             Math.PI * 2,
@@ -301,12 +307,12 @@ class Swarm
 
 function getInitState(): Swarm
 {
-    return new Swarm(10, 200, 100, 2000, 500);
+    return new Swarm(100, 200, 1e5, 8e10, 500);
 }
 
 // Initial program state
 var swarm = getInitState();
-setInterval(() => swarm.fullUpdate(), 50);
+setInterval(() => swarm.fullUpdate(), 20);
 
 const reset = document.getElementById("reset") as HTMLButtonElement;
 reset.onclick = () => {

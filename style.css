@@ -1,0 +1,12 @@
+#display {
+    width: 100%;
+    padding-top: 5px;
+    padding-right: 5px;
+    padding-bottom: 30px;
+    float: right;
+}
+
+.container {
+    width: 40%;
+    float: left;
+}

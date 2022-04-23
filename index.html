@@ -3,6 +3,7 @@
 <html>
     <head>
         <meta charset="utf-8">
+        <link rel="stylesheet" href="style.css">
         <title>PSO Sim</title>
     </head>
 
@@ -13,9 +14,33 @@
         <p id="target"></p>
         <p id="cost"></p><br>
         <button id="reset">Reset</button><br><br>
-        <canvas id="graph"></canvas>
-        <canvas id="sim"></canvas>
+        <div id="display">
+            <div class="container">
+                <h3>Data (white) vs. current best model (green):</h3>
+                <canvas id="graph"></canvas>
+            </div>
+            <div class="container">
+                <h3>Particles (the target is circled in red):</h3>
+                <canvas id="sim"></canvas>
+            </div>
+        </div>
 
-        <script type="text/javascript" src="out/script.js"></script>
+        <h2>How the program works:</h2>
+        <ol style="font-size: 16pt">
+            <li>A random quadratic (some a, b, and c value) is selected as the target.</li>
+            <li>
+                A dataset is created by evaluating the target quadratic for many random values of x,
+                and then adding random noise to each y value.
+            </li>
+            <li>
+                A random swarm of particles is initialized. Each particle is drawn to both its personal
+                best found position and the best found position of the entire swarm.
+            </li>
+            <li>
+                The graph on the left shows the swarm's best found position at each time step.
+            </li>
+        </ol>
+
+        <script type="text/javascript" src="js/script.js"></script>
     </body>
 </html>
