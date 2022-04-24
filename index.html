@@ -16,7 +16,7 @@
         <button id="reset">Reset</button><br><br>
         <div id="display">
             <div class="container">
-                <h3>Data (white) vs. current best model (green):</h3>
+                <h3>Data (red) vs. current best model (blue):</h3>
                 <canvas id="graph"></canvas>
             </div>
             <div class="container">
@@ -27,9 +27,9 @@
 
         <h2>How the program works:</h2>
         <ol style="font-size: 16pt">
-            <li>A random quadratic (some a, b, and c value) is selected as the target.</li>
+            <li>A random 4th degree polynomial is selected as the target.</li>
             <li>
-                A dataset is created by evaluating the target quadratic for many random values of x,
+                A dataset is created by evaluating the target polynomial for many random values of x,
                 and then adding random noise to each y value.
             </li>
             <li>

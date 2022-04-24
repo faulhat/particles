@@ -36,7 +36,7 @@ function twoplaces(x: number): number
     return Math.round(x * 100) / 100;
 }
 
-function arrayMax(array: Array<number>): number
+function arrayMax(array: number[]): number
 {
     var max = Number.MIN_VALUE;
     for (let x of array) {
@@ -48,7 +48,7 @@ function arrayMax(array: Array<number>): number
     return max;
 }
 
-function arrayMin(array: Array<number>): number
+function arrayMin(array: number[]): number
 {
     var min = Number.MAX_VALUE;
     for (let x of array) {
@@ -72,55 +72,120 @@ class Point
     }
 }
 
-class Quadratic
+class Polynomial
 {
-    coefficients: Array<number>;
+    readonly coefficients: number[];
+    readonly n_coefs: number;
 
-    constructor(a: number, b: number, c: number)
+    constructor(a: number, b: number, remaining: number[])
     {
-        this.coefficients = [a, b, c];
+        this.coefficients = [a, b, ...remaining];
+        this.n_coefs = this.coefficients.length;
+    }
+
+    static random(n_coefs: number, factor: number): Polynomial
+    {
+        let a = randSigned(factor);
+        let b = randSigned(factor);
+
+        let n_remaining = n_coefs - 2;
+        let remaining = new Array(n_remaining);
+        for (let i = 0; i < n_remaining; i++) {
+            remaining[i] = randSigned(factor);
+        }
+
+        return new Polynomial(a, b, remaining);
+    }
+
+    static zero(n_coefs: number): Polynomial
+    {
+        let remaining = new Array(n_coefs - 2);
+        for (let i = 0; i < n_coefs - 2; i++) remaining[i] = 0;
+
+        return new Polynomial(0, 0, remaining);
     }
 
     a() { return this.coefficients[0]; }
     b() { return this.coefficients[1]; }
-    c() { return this.coefficients[2]; }
 
     valueAt(x: number): number
     {
-        return this.a() * Math.pow(x, 2) + this.b() * x + this.c(); 
+        let y = 0;
+        for (let i = 0; i < this.n_coefs; i++) {
+            y += this.coefficients[i] * Math.pow(x, i);
+        }
+
+        return y;
     }
 
-    copy(): Quadratic
+    copy(): Polynomial
     {
-        return new Quadratic(this.a(), this.b(), this.c());
+        return new Polynomial(this.coefficients[0], this.coefficients[1], this.coefficients.slice(2));
     }
 
     toString(): string
     {
-        return (
-            twoplaces(this.a()) + "x^2 + " +
-            twoplaces(this.b()) + "x + " +
-            twoplaces(this.c())
-        );
+        let out = "y = ";
+        for (let i = this.n_coefs - 1; i >= 2; i--) {
+            out += twoplaces(this.coefficients[i]) + "x^" + i;
+            out += " + ";
+        }
+
+        out += twoplaces(this.coefficients[this.n_coefs - 2]) + "x + ";
+        out += twoplaces(this.coefficients[this.n_coefs - 1]);
+        return out;
+    }
+}
+
+class Position
+{
+    point: Point;
+    color: string;
+
+    constructor(point: Point, color: string)
+    {
+        this.point = new Point(point.x, point.y);
+        this.color = color;
     }
 }
 
 class Particle
 {
-    value: Quadratic;
-    velocity: Quadratic;
-    lBest: Quadratic;
+    static readonly n_coefs = 5;
+    readonly factor: number;
+
+    value: Polynomial;
+    velocity: Polynomial;
+    lBest: Polynomial;
     lBestCost: number;
 
     constructor(factor: number)
     {
-        this.value = new Quadratic(randSigned(factor), randSigned(factor), randSigned(factor));
-        this.velocity = new Quadratic(0, 0, 0);
+        this.factor = factor;
+        this.value = Polynomial.random(Particle.n_coefs, factor);
+        this.velocity = Polynomial.zero(Particle.n_coefs);
         this.lBest = null;
         this.lBestCost = Number.MAX_VALUE;
     }
+
+    private scale(value: number): number
+    {
+        return value / (20 * this.factor) + 1/2;
+    }
+
+    getPosition(width: number, height: number): Position
+    {
+        let color = [255, 255, 255];
+        for (let i = 2; i < Math.min(this.value.n_coefs, 5); i++) {
+            color[i - 2] = this.value.coefficients[i] / this.factor * 255;
+        }
+
+        let x = this.scale(this.value.a()) * width;
+        let y = (1 - this.scale(this.value.b())) * height;
+        return new Position(new Point(x, y), rgb(color[0], color[1], color[2]));
+    }
     
-    updateLBest(dataset: Array<Point>): void
+    updateLBest(dataset: Point[]): void
     {
         var cost = 0;
         for (let point of dataset) {
@@ -138,13 +203,12 @@ class Particle
 
 class Swarm
 {
-    static readonly N_STEPS = 500;
+    static readonly N_STEPS = 2000;
 
     coefFactor: number
-
-    target: Quadratic;
-    dataset: Array<Point>;
-    particles: Array<Particle>;
+    readonly target: Particle;
+    dataset: Point[];
+    particles: Particle[];
     gBest = null;
     gBestCost = Number.MAX_VALUE;
 
@@ -153,42 +217,40 @@ class Swarm
     constructor(factor: number, n_datapoints: number, scale: number, noiseFactor: number, n_particles: number)
     {
         this.coefFactor = factor;
-        this.target = new Quadratic(randSigned(factor), randSigned(factor), randSigned(factor));
-        targetText.innerText = "Target: " + this.target.toString();
+        this.target = new Particle(factor);
+        targetText.innerText = "Target: " + this.target.value.toString();
 
         this.dataset = new Array(n_datapoints);
         for (let i = 0; i < n_datapoints; i++) {
             let x = randSigned(scale);
             let noise = randSigned(noiseFactor);
-            let y = this.target.valueAt(x) + noise;
+            let y = this.target.value.valueAt(x) + noise;
             this.dataset[i] = new Point(x, y);
         }
 
         this.particles = new Array(n_particles);
         for (let i = 0; i < n_particles; i++) {
-            this.particles[i] = new Particle(2 * factor);
+            this.particles[i] = new Particle(factor);
         }
     }
 
     private getInertiaCoef(): number
     {
-        return this.step/Swarm.N_STEPS * (0.3 - 0.9) + 0.9;
+        return this.step/Swarm.N_STEPS * (0.4 - 0.8) + 0.8;
     }
 
     private getAccelerationCoefLocal(): number
     {
-        return this.step/Swarm.N_STEPS * (3.5 - 0.5) + 0.5;
+        return this.step/Swarm.N_STEPS * (0.5 - 2.5) + 2.5;
     }
 
     private getAccelerationCoefGlobal(): number
     {
-        return this.step/Swarm.N_STEPS * (0.5 - 3.5) + 3.5;
+        return this.step/Swarm.N_STEPS * (2.5 - 0.5) + 0.5;
     }
 
     private updateSwarm(): Swarm
     {
-
-
         for (let particle of this.particles) {
             particle.updateLBest(this.dataset);
             
@@ -217,15 +279,18 @@ class Swarm
         return this;
     }
 
-    private renderGraph(): Swarm
+    private renderGraph(ctx: CanvasRenderingContext2D): Swarm
     {
+        let { width, height } = ctx.canvas.getBoundingClientRect();
+
         // Clear
-        graphCtx.fillStyle = "black";
-        graphCtx.fillRect(0, 0, GRAPH_WIDTH, GRAPH_HEIGHT);
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, width, height);
 
         // Border
-        simCtx.strokeStyle = "white 2px";
-        simCtx.strokeRect(0, 0, GRAPH_WIDTH, GRAPH_HEIGHT);
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0, 0, width, height);
 
         var xs = this.dataset.map(point => point.x);
         var ys = this.dataset.map(point => point.y);
@@ -236,85 +301,82 @@ class Swarm
 
         // Display each datapoint in the dataset and each corresponding gBest prediction
         for (let point of this.dataset) {
-            graphCtx.fillStyle = "red";
-            graphCtx.beginPath();
-            graphCtx.arc(
-                (point.x - x_lower) / (x_upper - x_lower) * WIDTH,
-                HEIGHT - (point.y - y_lower) / (y_upper - y_lower) * HEIGHT,
+            ctx.fillStyle = "red";
+            ctx.beginPath();
+            ctx.arc(
+                (point.x - x_lower) / (x_upper - x_lower) * width,
+                (1 - (point.y - y_lower) / (y_upper - y_lower)) * height,
                 10,
                 0,
                 Math.PI * 2,
             );
-            graphCtx.fill();
+            ctx.fill();
         }
 
         for (let x = Math.ceil(x_lower); x < Math.floor(x_upper); x += (x_upper - x_lower) / 1000) {
-            graphCtx.fillStyle = "blue";
-            graphCtx.beginPath();
-            graphCtx.arc(
-                (x - x_lower) / (x_upper - x_lower) * WIDTH,
-                HEIGHT - (this.gBest.valueAt(x) - y_lower) / (y_upper - y_lower) * HEIGHT,
+            ctx.fillStyle = "blue";
+            ctx.beginPath();
+            ctx.arc(
+                (x - x_lower) / (x_upper - x_lower) * width,
+                (1 - (this.gBest.valueAt(x) - y_lower) / (y_upper - y_lower)) * height,
                 4,
                 0,
                 Math.PI * 2,
             );
-            graphCtx.fill();
+            ctx.fill();
         }
 
         return this;
     }
 
-    private scale(value: number): number
+    private renderSwarm(ctx: CanvasRenderingContext2D): Swarm
     {
-        return value / (2.2 * this.coefFactor) + 1/2;
-    }
+        let { width, height } = ctx.canvas.getBoundingClientRect();
 
-    private renderSwarm(): Swarm
-    {
         // Clear
-        simCtx.fillStyle = "black";
-        simCtx.fillRect(0, 0, WIDTH, HEIGHT);
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, width, height);
 
         // Border
-        simCtx.strokeStyle = "white";
-        simCtx.lineWidth = 2;
-        simCtx.strokeRect(0, 0, WIDTH, HEIGHT);
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0, 0, ctx.canvas.width, height);
 
         // Display each particle
         for (let particle of this.particles) {
-            let scaled_a = this.scale(particle.value.a());
-            let scaled_b = this.scale(particle.value.b())
-            let scaled_c = this.scale(particle.value.c());
-            simCtx.fillStyle = rgb(scaled_a * 255, scaled_b * 255, scaled_c * 255);
-            simCtx.beginPath();
-            simCtx.arc(
-                scaled_a * WIDTH,
-                (1 - scaled_b) * HEIGHT,
+            let position = particle.getPosition(width, height);
+            ctx.fillStyle = position.color;
+            ctx.beginPath();
+            ctx.arc(
+                position.point.x,
+                position.point.y,
                 10,
                 0,
                 Math.PI * 2,
             );
-            simCtx.fill();
+            ctx.fill();
+
+            ctx.strokeStyle = "white";
+            ctx.lineWidth = 1;
+            ctx.stroke();
         }
 
         // Display a point for the target
-        let scaled_a = this.scale(this.target.a());
-        let scaled_b = this.scale(this.target.b())
-        let scaled_c = this.scale(this.target.c());
-        simCtx.fillStyle = rgb(scaled_a * 255, scaled_b * 255, scaled_c * 255);
-        simCtx.beginPath();
-        simCtx.arc(
-            scaled_a * WIDTH,
-            (1 - scaled_b) * HEIGHT,
+        let position = this.target.getPosition(width, height);
+        ctx.fillStyle = position.color;
+        ctx.beginPath();
+        ctx.arc(
+            position.point.x,
+            position.point.y,
             15,
             0,
             Math.PI * 2,
         );
-        simCtx.fill();
+        ctx.fill();
 
-        simCtx.strokeStyle = rgb(255, 0, 0);
-        simCtx.lineWidth = 3;
-        simCtx.stroke();
+        ctx.strokeStyle = "red";
+        ctx.lineWidth = 3;
+        ctx.stroke();
 
         return this;
     }
@@ -324,8 +386,7 @@ class Swarm
     {
         if (this.step >= Swarm.N_STEPS) return;
 
-        this.updateSwarm();
-        this.renderGraph().renderSwarm();
+        this.updateSwarm().renderGraph(graphCtx).renderSwarm(simCtx);
         this.step++;
 
         stepCtr.innerText = "Step: " + this.step + "/" + Swarm.N_STEPS;
@@ -336,12 +397,12 @@ class Swarm
 
 function getInitState(): Swarm
 {
-    return new Swarm(100, 200, 100, 2000, 5000);
+    return new Swarm(10, 200, 10, 500, 2000);
 }
 
 // Initial program state
 var swarm = getInitState();
-setInterval(() => swarm.fullUpdate(), 50);
+setInterval(() => swarm.fullUpdate(), 25);
 
 const reset = document.getElementById("reset") as HTMLButtonElement;
 reset.onclick = () => {
