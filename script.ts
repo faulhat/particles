@@ -22,7 +22,11 @@ function rand(factor: number)
 // Get a number in range (-factor, factor)
 function randSigned(factor: number)
 {
-    return rand(factor * 2) - factor;
+    if (Math.random() < 0.5) {
+        return -rand(factor);
+    }
+
+    return rand(factor);
 }
 
 function rgb(r: number, g: number, b: number): string
@@ -81,6 +85,11 @@ class Polynomial
     {
         this.coefficients = [a, b, ...remaining];
         this.n_coefs = this.coefficients.length;
+    }
+
+    getRemaining()
+    {
+        return this.coefficients.slice(2);
     }
 
     static random(n_coefs: number, factor: number): Polynomial
@@ -151,7 +160,7 @@ class Position
 
 class Particle
 {
-    static readonly n_coefs = 5;
+    static readonly n_coefs = 4;
     readonly factor: number;
 
     value: Polynomial;
@@ -175,9 +184,10 @@ class Particle
 
     getPosition(width: number, height: number): Position
     {
-        let color = [255, 255, 255];
-        for (let i = 2; i < Math.min(this.value.n_coefs, 5); i++) {
-            color[i - 2] = this.value.coefficients[i] / this.factor * 255;
+        let color = [150, 150, 150];
+        for (let i = 0; i < 3; i++) {
+            if (2 + i >= Particle.n_coefs) break;
+            color[2 - i] = this.value.coefficients[2 + i] / this.factor * 255;
         }
 
         let x = this.scale(this.value.a()) * width;
@@ -203,7 +213,7 @@ class Particle
 
 class Swarm
 {
-    static readonly N_STEPS = 2000;
+    static readonly N_STEPS = 1000;
 
     coefFactor: number
     readonly target: Particle;
@@ -241,12 +251,12 @@ class Swarm
 
     private getAccelerationCoefLocal(): number
     {
-        return this.step/Swarm.N_STEPS * (0.5 - 2.5) + 2.5;
+        return this.step/Swarm.N_STEPS * (0.5 - 3.5) + 3.5;
     }
 
     private getAccelerationCoefGlobal(): number
     {
-        return this.step/Swarm.N_STEPS * (2.5 - 0.5) + 0.5;
+        return this.step/Swarm.N_STEPS * (3.5 - 0.5) + 0.5;
     }
 
     private updateSwarm(): Swarm
@@ -313,7 +323,7 @@ class Swarm
             ctx.fill();
         }
 
-        for (let x = Math.ceil(x_lower); x < Math.floor(x_upper); x += (x_upper - x_lower) / 1000) {
+        for (let x = x_lower; x < x_upper; x += (x_upper - x_lower) / 1000) {
             ctx.fillStyle = "blue";
             ctx.beginPath();
             ctx.arc(
@@ -375,23 +385,19 @@ class Swarm
         ctx.fill();
 
         ctx.strokeStyle = "red";
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 4;
         ctx.stroke();
 
         return this;
     }
 
     // Main program loop
-    fullUpdate(): void
+    fullUpdate(graphCtx: CanvasRenderingContext2D, simCtx: CanvasRenderingContext2D): void
     {
         if (this.step >= Swarm.N_STEPS) return;
 
         this.updateSwarm().renderGraph(graphCtx).renderSwarm(simCtx);
         this.step++;
-
-        stepCtr.innerText = "Step: " + this.step + "/" + Swarm.N_STEPS;
-        bestText.innerText = "Best: " + this.gBest.toString();
-        costText.innerText = "Cost: " + twoplaces(this.gBestCost);
     }
 }
 
@@ -402,9 +408,15 @@ function getInitState(): Swarm
 
 // Initial program state
 var swarm = getInitState();
-setInterval(() => swarm.fullUpdate(), 25);
+setInterval(() => {
+    swarm.fullUpdate(graphCtx, simCtx);
+
+    stepCtr.innerText = "Step: " + swarm.step + "/" + Swarm.N_STEPS;
+    bestText.innerText = "Best: " + swarm.gBest.toString();
+    costText.innerText = "Cost: " + twoplaces(swarm.gBestCost);
+}, 50);
 
 const reset = document.getElementById("reset") as HTMLButtonElement;
 reset.onclick = () => {
     swarm = getInitState();
-}
+};
