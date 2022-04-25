@@ -222,6 +222,8 @@ class Swarm
     gBest = null;
     gBestCost = Number.MAX_VALUE;
 
+    static readonly CYCLE = 5;
+    substep = 0;
     step = 0;
 
     constructor(factor: number, n_datapoints: number, scale: number, noiseFactor: number, n_particles: number)
@@ -259,7 +261,7 @@ class Swarm
         return this.step/Swarm.N_STEPS * (3.5 - 0.5) + 0.5;
     }
 
-    private updateSwarm(): Swarm
+    private updateVelocities(): void
     {
         for (let particle of this.particles) {
             particle.updateLBest(this.dataset);
@@ -277,12 +279,27 @@ class Swarm
                 let value = particle.value.coefficients[i];
                 let diffLBest = particle.lBest.coefficients[i] - value;
                 let diffGBest = this.gBest.coefficients[i] - value;
-                particle.velocity.coefficients[i] =
+                particle.velocity.coefficients[i] = (
                     this.getInertiaCoef() * particle.velocity.coefficients[i] +
                     this.getAccelerationCoefLocal() * r1 * diffLBest +
-                    this.getAccelerationCoefGlobal() * r2 * diffGBest;
+                    this.getAccelerationCoefGlobal() * r2 * diffGBest
+                );
+            }
+        }
+    }
 
-                particle.value.coefficients[i] += particle.velocity.coefficients[i];
+    private doSubstep(): Swarm
+    {
+        this.substep++;
+        this.substep %= Swarm.CYCLE;
+
+        if (this.substep == 0) {
+            this.updateVelocities();
+        }
+
+        for (let particle of this.particles) {
+            for (let i = 0; i < 3; i++) {
+                particle.value.coefficients[i] += particle.velocity.coefficients[i] * 1/Swarm.CYCLE;
             }
         }
 
@@ -396,14 +413,14 @@ class Swarm
     {
         if (this.step >= Swarm.N_STEPS) return;
 
-        this.updateSwarm().renderGraph(graphCtx).renderSwarm(simCtx);
+        this.doSubstep().renderGraph(graphCtx).renderSwarm(simCtx);
         this.step++;
     }
 }
 
 function getInitState(): Swarm
 {
-    return new Swarm(10, 200, 10, 500, 2000);
+    return new Swarm(10, 200, 10, 1000, 1000);
 }
 
 // Initial program state
