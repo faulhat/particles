@@ -161,8 +161,8 @@ class Position
 class Particle
 {
     static readonly n_coefs = 4;
-    readonly factor: number;
 
+    factor: number;
     value: Polynomial;
     velocity: Polynomial;
     lBest: Polynomial;
@@ -213,7 +213,7 @@ class Particle
 
 class Swarm
 {
-    static readonly N_STEPS = 1000;
+    static readonly N_STEPS = 100;
 
     coefFactor: number
     readonly target: Particle;
@@ -222,7 +222,7 @@ class Swarm
     gBest = null;
     gBestCost = Number.MAX_VALUE;
 
-    static readonly CYCLE = 5;
+    static readonly CYCLE = 10;
     substep = 0;
     step = 0;
 
@@ -242,7 +242,8 @@ class Swarm
 
         this.particles = new Array(n_particles);
         for (let i = 0; i < n_particles; i++) {
-            this.particles[i] = new Particle(factor);
+            this.particles[i] = new Particle(12 * factor);
+            this.particles[i].factor = factor;
         }
     }
 
@@ -295,6 +296,7 @@ class Swarm
 
         if (this.substep == 0) {
             this.updateVelocities();
+            this.step++;
         }
 
         for (let particle of this.particles) {
@@ -414,13 +416,12 @@ class Swarm
         if (this.step >= Swarm.N_STEPS) return;
 
         this.doSubstep().renderGraph(graphCtx).renderSwarm(simCtx);
-        this.step++;
     }
 }
 
 function getInitState(): Swarm
 {
-    return new Swarm(10, 200, 10, 1000, 1000);
+    return new Swarm(10, 200, 10, 1000, 200);
 }
 
 // Initial program state
@@ -431,7 +432,7 @@ setInterval(() => {
     stepCtr.innerText = "Step: " + swarm.step + "/" + Swarm.N_STEPS;
     bestText.innerText = "Best: " + swarm.gBest.toString();
     costText.innerText = "Cost: " + twoplaces(swarm.gBestCost);
-}, 50);
+}, 25);
 
 const reset = document.getElementById("reset") as HTMLButtonElement;
 reset.onclick = () => {
