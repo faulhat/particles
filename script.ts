@@ -19,6 +19,12 @@ function rand(factor: number)
     return Math.random() * factor;
 }
 
+// Get an int in range [min, max)
+function randInt(min: number, max: number)
+{
+    return Math.floor(rand(max - min) + min);
+}
+
 // Get a number in range (-factor, factor)
 function randSigned(factor: number)
 {
@@ -135,7 +141,7 @@ class Polynomial
     toString(): string
     {
         let out = "y = ";
-        for (let i = this.n_coefs - 1; i >= 2; i--) {
+        for (let i = 0; i < this.n_coefs - 2; i++) {
             out += twoplaces(this.coefficients[i]) + "x^" + i;
             out += " + ";
         }
@@ -143,18 +149,6 @@ class Polynomial
         out += twoplaces(this.coefficients[this.n_coefs - 2]) + "x + ";
         out += twoplaces(this.coefficients[this.n_coefs - 1]);
         return out;
-    }
-}
-
-class Position
-{
-    point: Point;
-    color: string;
-
-    constructor(point: Point, color: string)
-    {
-        this.point = new Point(point.x, point.y);
-        this.color = color;
     }
 }
 
@@ -167,6 +161,7 @@ class Particle
     velocity: Polynomial;
     lBest: Polynomial;
     lBestCost: number;
+    color: string;
 
     constructor(factor: number)
     {
@@ -175,24 +170,23 @@ class Particle
         this.velocity = Polynomial.random(Particle.n_coefs, factor * 0.1);
         this.lBest = null;
         this.lBestCost = Number.MAX_VALUE;
+        this.color = rgb(
+            randInt(50, 250),
+            randInt(50, 250),
+            randInt(50, 250),
+        );
     }
 
     private scale(value: number): number
     {
-        return value / (2 * this.factor) + 1/2;
+        return value / (4 * this.factor) + 1/2;
     }
 
-    getPosition(width: number, height: number): Position
+    getPosition(width: number, height: number): Point
     {
-        let color = [150, 150, 150];
-        for (let i = 0; i < 3; i++) {
-            if (2 + i >= Particle.n_coefs) break;
-            color[2 - i] = this.value.coefficients[2 + i] / this.factor * 255;
-        }
-
         let x = this.scale(this.value.a()) * width;
         let y = (1 - this.scale(this.value.b())) * height;
-        return new Position(new Point(x, y), rgb(color[0], color[1], color[2]));
+        return new Point(x, y);
     }
     
     updateLBest(dataset: Point[]): void
@@ -222,7 +216,7 @@ class Swarm
     gBest = null;
     gBestCost = Number.MAX_VALUE;
 
-    static readonly CYCLE = 10;
+    static readonly CYCLE = 20;
     substep = 0;
     step = 0;
 
@@ -248,12 +242,12 @@ class Swarm
 
     private getInertiaCoef(): number
     {
-        return this.step/Swarm.N_STEPS * (0.2 - 0.7) + 0.7;
+        return this.step/Swarm.N_STEPS * (0.4 - 0.8) + 0.8;
     }
 
     private getAccelerationCoefLocal(): number
     {
-        return this.step/Swarm.N_STEPS * (0.25 - 2.75) + 2.75;
+        return this.step/Swarm.N_STEPS * (0.5 - 2.5) + 2.5;
     }
 
     private getAccelerationCoefGlobal(): number
@@ -370,32 +364,13 @@ class Swarm
         ctx.lineWidth = 2;
         ctx.strokeRect(0, 0, ctx.canvas.width, height);
 
-        // Display each particle
-        for (let particle of this.particles) {
-            let position = particle.getPosition(width, height);
-            ctx.fillStyle = position.color;
-            ctx.beginPath();
-            ctx.arc(
-                position.point.x,
-                position.point.y,
-                10,
-                0,
-                Math.PI * 2,
-            );
-            ctx.fill();
-
-            ctx.strokeStyle = "white";
-            ctx.lineWidth = 1;
-            ctx.stroke();
-        }
-
         // Display a point for the target
         let position = this.target.getPosition(width, height);
-        ctx.fillStyle = position.color;
+        ctx.fillStyle = "white";
         ctx.beginPath();
         ctx.arc(
-            position.point.x,
-            position.point.y,
+            position.x,
+            position.y,
             15,
             0,
             Math.PI * 2,
@@ -403,8 +378,23 @@ class Swarm
         ctx.fill();
 
         ctx.strokeStyle = "red";
-        ctx.lineWidth = 4;
+        ctx.lineWidth = 2;
         ctx.stroke();
+
+        // Display each particle
+        for (let particle of this.particles) {
+            let position = particle.getPosition(width, height);
+            ctx.fillStyle = particle.color;
+            ctx.beginPath();
+            ctx.arc(
+                position.x,
+                position.y,
+                10,
+                0,
+                Math.PI * 2,
+            );
+            ctx.fill();
+        }
 
         return this;
     }
