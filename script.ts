@@ -172,14 +172,14 @@ class Particle
     {
         this.factor = factor;
         this.value = Polynomial.random(Particle.n_coefs, factor);
-        this.velocity = Polynomial.zero(Particle.n_coefs);
+        this.velocity = Polynomial.random(Particle.n_coefs, factor * 0.1);
         this.lBest = null;
         this.lBestCost = Number.MAX_VALUE;
     }
 
     private scale(value: number): number
     {
-        return value / (20 * this.factor) + 1/2;
+        return value / (25 * this.factor) + 1/2;
     }
 
     getPosition(width: number, height: number): Position
@@ -213,7 +213,7 @@ class Particle
 
 class Swarm
 {
-    static readonly N_STEPS = 100;
+    static readonly N_STEPS = 50;
 
     coefFactor: number
     readonly target: Particle;
@@ -249,17 +249,17 @@ class Swarm
 
     private getInertiaCoef(): number
     {
-        return this.step/Swarm.N_STEPS * (0.4 - 0.8) + 0.8;
+        return this.step/Swarm.N_STEPS * (0.2 - 0.7) + 0.7;
     }
 
     private getAccelerationCoefLocal(): number
     {
-        return this.step/Swarm.N_STEPS * (0.5 - 3.5) + 3.5;
+        return this.step/Swarm.N_STEPS * (0.25 - 2.75) + 2.75;
     }
 
     private getAccelerationCoefGlobal(): number
     {
-        return this.step/Swarm.N_STEPS * (3.5 - 0.5) + 0.5;
+        return 3 - this.getAccelerationCoefLocal();
     }
 
     private updateVelocities(): void
@@ -273,10 +273,11 @@ class Swarm
             }
         }
 
-        for (let i = 0; i < 3; i++) {
-            let r1 = Math.random();
-            let r2 = Math.random();
-            for (let particle of this.particles) {
+        for (let particle of this.particles) {
+            for (let i = 0; i < Particle.n_coefs; i++) {
+                let r1 = Math.random();
+                let r2 = Math.random();
+
                 let value = particle.value.coefficients[i];
                 let diffLBest = particle.lBest.coefficients[i] - value;
                 let diffGBest = this.gBest.coefficients[i] - value;
@@ -292,15 +293,14 @@ class Swarm
     private doSubstep(): Swarm
     {
         this.substep++;
-        this.substep %= Swarm.CYCLE;
-
-        if (this.substep == 0) {
+        if (this.substep == Swarm.CYCLE) {
             this.updateVelocities();
+            this.substep = 0;
             this.step++;
         }
 
         for (let particle of this.particles) {
-            for (let i = 0; i < 3; i++) {
+            for (let i = 0; i < Particle.n_coefs; i++) {
                 particle.value.coefficients[i] += particle.velocity.coefficients[i] * 1/Swarm.CYCLE;
             }
         }
@@ -421,7 +421,7 @@ class Swarm
 
 function getInitState(): Swarm
 {
-    return new Swarm(10, 200, 10, 1000, 200);
+    return new Swarm(10, 200, 10, 1000, 1000);
 }
 
 // Initial program state
