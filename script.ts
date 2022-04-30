@@ -121,7 +121,7 @@ class Polynomial
     {
         let y = 0;
         for (let i = 0; i < this.n_coefs; i++) {
-            y += this.coefficients[i] * Math.pow(x, i);
+            y += this.coefficients[i] * Math.pow(x, this.n_coefs - 1 - i);
         }
 
         return y;
@@ -179,7 +179,7 @@ class Particle
 
     private scale(value: number): number
     {
-        return value / (25 * this.factor) + 1/2;
+        return value / (2 * this.factor) + 1/2;
     }
 
     getPosition(width: number, height: number): Position
@@ -242,8 +242,7 @@ class Swarm
 
         this.particles = new Array(n_particles);
         for (let i = 0; i < n_particles; i++) {
-            this.particles[i] = new Particle(12 * factor);
-            this.particles[i].factor = factor;
+            this.particles[i] = new Particle(factor);
         }
     }
 
@@ -421,7 +420,7 @@ class Swarm
 
 function getInitState(): Swarm
 {
-    return new Swarm(10, 200, 10, 1000, 1000);
+    return new Swarm(10, 200, 10, 1000, 200);
 }
 
 // Initial program state
