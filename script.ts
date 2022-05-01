@@ -142,7 +142,7 @@ class Polynomial
     {
         let out = "y = ";
         for (let i = 0; i < this.n_coefs - 2; i++) {
-            out += twoplaces(this.coefficients[i]) + "x^" + i;
+            out += twoplaces(this.coefficients[i]) + "x^" + (this.n_coefs - 1 - i);
             out += " + ";
         }
 
