@@ -228,7 +228,7 @@ class Particle
 
 class Swarm
 {
-    static readonly N_STEPS = 25;
+    readonly n_steps: number;
 
     coefFactor: number
     readonly target: Particle;
@@ -244,7 +244,7 @@ class Swarm
     substep = 0;
     step = 0;
 
-    constructor(factor: number, n_datapoints: number, scale: number, noiseFactor: number, n_particles: number)
+    constructor(factor: number, n_datapoints: number, scale: number, noiseFactor: number, n_particles: number, n_steps: number)
     {
         this.coefFactor = factor;
         this.target = new Particle(factor);
@@ -264,16 +264,18 @@ class Swarm
             this.particles[i] = new Particle(5 * factor);
             this.particles[i].factor = factor;
         }
+
+        this.n_steps = n_steps;
     }
 
     private getInertiaCoef(): number
     {
-        return this.step/Swarm.N_STEPS * (0.4 - 0.8) + 0.8;
+        return this.step/this.n_steps * (0.4 - 0.8) + 0.8;
     }
 
     private getAccelerationCoefLocal(): number
     {
-        return this.step/Swarm.N_STEPS * (0.5 - 2.5) + 2.5;
+        return this.step/this.n_steps * (0.5 - 2.5) + 2.5;
     }
 
     private getAccelerationCoefGlobal(): number
@@ -429,23 +431,42 @@ class Swarm
     // Main program loop
     fullUpdate(graphCtx: CanvasRenderingContext2D, simCtx: CanvasRenderingContext2D): void
     {
-        if (this.step >= Swarm.N_STEPS) return;
+        if (this.step >= this.n_steps) return;
 
         this.doSubstep().renderGraph(graphCtx).renderSwarm(simCtx);
     }
 }
 
+const nParticlesInput = document.getElementById("n_particles") as HTMLInputElement;
+const nStepsInput = document.getElementById("n_steps") as HTMLInputElement;
+
 function getInitState(): Swarm
 {
-    return new Swarm(50, 50, 10, 5000, 100);
+    const FACTOR = 50;
+    const N_DATAPOINTS = 50;
+    const SCALE = 10;
+    const NOISE_FACTOR = 5000;
+
+    let n_particles = parseInt(nParticlesInput.value);
+    if (isNaN(n_particles)) {
+        n_particles = 100;
+    }
+
+    let n_steps = parseInt(nStepsInput.value);
+    if (isNaN(n_steps)) {
+        n_steps = 50;
+    }
+    
+    return new Swarm(FACTOR, N_DATAPOINTS, SCALE, NOISE_FACTOR, n_particles, n_steps);
 }
 
 // Initial program state
 var swarm = getInitState();
 setInterval(() => {
     swarm.fullUpdate(graphCtx, simCtx);
+    if (swarm.step >= swarm.n_steps) return;
 
-    stepCtr.innerText = "Step: " + swarm.step + "/" + Swarm.N_STEPS;
+    stepCtr.innerText = "Step: " + swarm.step + "/" + swarm.n_steps;
     bestText.innerText = "Best: " + swarm.gBest.toString();
     costText.innerText = "Cost: " + twoplaces(swarm.gBestCost);
     r2Text.innerText = "R-squared: " + twoplaces(swarm.rsquared);
