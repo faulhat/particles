@@ -2,6 +2,7 @@ const stepCtr = document.getElementById("step") as HTMLHeadingElement;
 const bestText = document.getElementById("best") as HTMLParagraphElement;
 const targetText = document.getElementById("target") as HTMLParagraphElement;
 const costText = document.getElementById("cost") as HTMLParagraphElement;
+const r2Text = document.getElementById("r2") as HTMLParagraphElement;
 
 const graph = document.getElementById("graph") as HTMLCanvasElement;
 const sim = document.getElementById("sim") as HTMLCanvasElement;
@@ -68,6 +69,14 @@ function arrayMin(array: number[]): number
     }
 
     return min;
+}
+
+function getBaseErr(dataset: Point[]): number
+{
+    let sum = dataset.reduce((a, b) => a + b.y, 0);
+    let avg = sum / dataset.length;
+    
+    return dataset.reduce((a, b) => a + Math.pow(avg - b.y, 2), 0);
 }
 
 class Point
@@ -140,14 +149,26 @@ class Polynomial
 
     toString(): string
     {
-        let out = "y = ";
-        for (let i = 0; i < this.n_coefs - 2; i++) {
-            out += twoplaces(this.coefficients[i]) + "x^" + (this.n_coefs - 1 - i);
-            out += " + ";
+        let out = "y = " + twoplaces(this.coefficients[0]) + "x^" + (this.n_coefs - 1);
+        for (let i = 1; i < this.n_coefs; i++) {
+            if (this.coefficients[i] == 0) {
+                continue;
+            }
+            else if (this.coefficients[i] < 0) {
+                out += " - " + twoplaces(Math.abs(this.coefficients[i]));
+            }
+            else {
+                out += " + " + twoplaces(this.coefficients[i]);
+            }
+
+            if (i < this.n_coefs - 2) {
+                out += "x^" + (this.n_coefs - 1 - i);
+            }
+            else if (i == this.n_coefs - 2) {
+                out += "x";
+            }
         }
 
-        out += twoplaces(this.coefficients[this.n_coefs - 2]) + "x + ";
-        out += twoplaces(this.coefficients[this.n_coefs - 1]);
         return out;
     }
 }
@@ -179,7 +200,7 @@ class Particle
 
     private scale(value: number): number
     {
-        return value / (4 * this.factor) + 1/2;
+        return value / (12 * this.factor) + 1/2;
     }
 
     getPosition(width: number, height: number): Point
@@ -207,7 +228,7 @@ class Particle
 
 class Swarm
 {
-    static readonly N_STEPS = 50;
+    static readonly N_STEPS = 25;
 
     coefFactor: number
     readonly target: Particle;
@@ -216,7 +237,10 @@ class Swarm
     gBest = null;
     gBestCost = Number.MAX_VALUE;
 
-    static readonly CYCLE = 20;
+    readonly baseErr: number;
+    rsquared = 0;
+
+    static readonly CYCLE = 16;
     substep = 0;
     step = 0;
 
@@ -233,10 +257,12 @@ class Swarm
             let y = this.target.value.valueAt(x) + noise;
             this.dataset[i] = new Point(x, y);
         }
+        this.baseErr = getBaseErr(this.dataset);
 
         this.particles = new Array(n_particles);
         for (let i = 0; i < n_particles; i++) {
-            this.particles[i] = new Particle(factor);
+            this.particles[i] = new Particle(5 * factor);
+            this.particles[i].factor = factor;
         }
     }
 
@@ -265,6 +291,7 @@ class Swarm
                 this.gBestCost = particle.lBestCost;
             }
         }
+        this.rsquared = 1 - (Math.pow(this.gBestCost, 2) / this.baseErr);
 
         for (let particle of this.particles) {
             for (let i = 0; i < Particle.n_coefs; i++) {
@@ -410,7 +437,7 @@ class Swarm
 
 function getInitState(): Swarm
 {
-    return new Swarm(10, 200, 10, 1000, 200);
+    return new Swarm(50, 50, 10, 5000, 100);
 }
 
 // Initial program state
@@ -421,6 +448,7 @@ setInterval(() => {
     stepCtr.innerText = "Step: " + swarm.step + "/" + Swarm.N_STEPS;
     bestText.innerText = "Best: " + swarm.gBest.toString();
     costText.innerText = "Cost: " + twoplaces(swarm.gBestCost);
+    r2Text.innerText = "R-squared: " + twoplaces(swarm.rsquared);
 }, 25);
 
 const reset = document.getElementById("reset") as HTMLButtonElement;
