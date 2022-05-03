@@ -314,12 +314,11 @@ class Swarm
 
     private doSubstep(): Swarm
     {
-        this.substep++;
-        if (this.substep == Swarm.CYCLE) {
-            this.updateVelocities();
-            this.substep = 0;
+        if (this.substep == 0) {
             this.step++;
+            this.updateVelocities();
         }
+        this.substep = (this.substep + 1) % Swarm.CYCLE;
 
         for (let particle of this.particles) {
             for (let i = 0; i < Particle.n_coefs; i++) {
@@ -429,42 +428,47 @@ class Swarm
     }
 
     // Main program loop
-    fullUpdate(graphCtx: CanvasRenderingContext2D, simCtx: CanvasRenderingContext2D): void
+    fullUpdate(graphCtx: CanvasRenderingContext2D, simCtx: CanvasRenderingContext2D): boolean
     {
-        if (this.step >= this.n_steps) return;
+        if (this.step >= this.n_steps) return true;
 
         this.doSubstep().renderGraph(graphCtx).renderSwarm(simCtx);
+        return false;
     }
 }
 
+const nDataInput = document.getElementById("n_data") as HTMLInputElement;
 const nParticlesInput = document.getElementById("n_particles") as HTMLInputElement;
 const nStepsInput = document.getElementById("n_steps") as HTMLInputElement;
 
 function getInitState(): Swarm
 {
     const FACTOR = 50;
-    const N_DATAPOINTS = 50;
     const SCALE = 10;
     const NOISE_FACTOR = 5000;
 
+    let n_data = parseInt(nDataInput.value);
+    if (isNaN(n_data) || n_data < 2) {
+        n_data = 50;
+    }
+
     let n_particles = parseInt(nParticlesInput.value);
-    if (isNaN(n_particles)) {
+    if (isNaN(n_particles) || n_particles < 1) {
         n_particles = 100;
     }
 
     let n_steps = parseInt(nStepsInput.value);
-    if (isNaN(n_steps)) {
+    if (isNaN(n_steps) || n_steps < 1) {
         n_steps = 50;
     }
     
-    return new Swarm(FACTOR, N_DATAPOINTS, SCALE, NOISE_FACTOR, n_particles, n_steps);
+    return new Swarm(FACTOR, n_data, SCALE, NOISE_FACTOR, n_particles, n_steps);
 }
 
 // Initial program state
 var swarm = getInitState();
 setInterval(() => {
-    swarm.fullUpdate(graphCtx, simCtx);
-    if (swarm.step >= swarm.n_steps) return;
+    if (swarm.fullUpdate(graphCtx, simCtx)) return;
 
     stepCtr.innerText = "Step: " + swarm.step + "/" + swarm.n_steps;
     bestText.innerText = "Best: " + swarm.gBest.toString();
