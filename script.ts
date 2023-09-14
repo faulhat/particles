@@ -9,10 +9,10 @@ const sim = document.getElementById("sim") as HTMLCanvasElement;
 const graphCtx = graph.getContext("2d");
 const simCtx = sim.getContext("2d");
 
-const GRAPH_WIDTH = graph.width = 900;
-const GRAPH_HEIGHT = graph.height = 900;
-const WIDTH = sim.width = 900;
-const HEIGHT = sim.height = 900;
+const GRAPH_WIDTH = graph.width = 330;
+const GRAPH_HEIGHT = graph.height = 330;
+const WIDTH = sim.width = 330;
+const HEIGHT = sim.height = 330;
 
 // Get a number in range [0, factor)
 function rand(factor: number)
@@ -473,7 +473,7 @@ setInterval(() => {
     stepCtr.innerText = "Step: " + swarm.step + "/" + swarm.n_steps;
     bestText.innerText = "Best: " + swarm.gBest.toString();
     costText.innerText = "Cost: " + twoplaces(swarm.gBestCost);
-    r2Text.innerText = "R-squared: " + twoplaces(swarm.rsquared);
+    r2Text.innerText = "R-squared (accuracy): " + twoplaces(swarm.rsquared);
 }, 25);
 
 const reset = document.getElementById("reset") as HTMLButtonElement;
